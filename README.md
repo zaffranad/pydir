@@ -1,6 +1,7 @@
 # pydir
-scan, stats and reorg your documents
+scan a directory for PDF files, then allow the user to select a PDF to generate an audio file (mp3)
 
 ## My first python playground 
 
-![image](https://user-images.githubusercontent.com/4168542/236472225-d5272467-454f-49b4-a2a9-2e7a565e6fa8.png)
+![image](https://user-images.githubusercontent.com/4168542/236578725-e4f77028-256b-4da3-b980-3ac7958369ab.png)
+
