@@ -8,46 +8,25 @@ import pyttsx3
 from PyPDF3 import PdfFileReader
 
 from file_class import FileByExtension
-from helpers import save_stat_total_size
+from helpers import is_pdf_file
 
-WINDOW_OPENING_SIZE = "900x700"
+WINDOW_OPENING_SIZE = "900x560"
 
 DEFAULT_PATH = 'F:\\sandbox_python'
 
 
 def process_selected_directory():
     directory = entry_choose_directory.get()
+    listbox_files.delete(0, tk.END)
     files = os.walk(directory)
-    listbox_stats.delete(0, tk.END)
-
-    stats = []
-    total_size = 0
-    files_by_extension.clear()
 
     for (dir_path, dirs_inside, files_inside) in files:
         if len(files_inside) > 0:
             for file in files_inside:
                 file_path = os.path.join(dir_path, file)
-                total_size += os.path.getsize(file_path)
 
-                extension = os.path.splitext(file)[1].lower()
-
-                if file.startswith('.'):
-                    continue
-
-                if extension in files_by_extension:
-                    files_by_extension[extension].files.append(file_path)
-                else:
-                    files_by_extension[extension] = FileByExtension([file_path])
-
-    save_stat_total_size(total_size, stats)
-
-    for extension, file_by_extension in files_by_extension.items():
-        listbox_stats.insert(tk.END, f"{extension} : {file_by_extension.count()}")
-
-    for stat in stats:
-        print(stat)
-        listbox_stats.insert(tk.END, stat)
+                if is_pdf_file(file):
+                    listbox_files.insert(tk.END, f"{file_path}")
 
 
 def select_directory():
@@ -56,16 +35,50 @@ def select_directory():
     entry_choose_directory.insert(0, directory)
 
 
-def display_files(event):
-    listbox_files.delete(0, tk.END)
-    button_generate_audio['state'] = 'disabled'
+def activate_generate_audio_button(event):
+    if os.path.splitext(listbox_files.get(listbox_files.curselection()))[1].lower() == '.pdf':
+        button_generate_audio['state'] = 'normal'
+    else:
+        button_generate_audio['state'] = 'disabled'
 
-    if not listbox_stats.curselection():
-        return
 
-    index = listbox_stats.curselection()[0]
-    for file in list(files_by_extension.values())[index].files:
-        listbox_files.insert(tk.END, f"{file}")
+def process_audio_generation():
+    file = listbox_files.get(listbox_files.curselection()[0])
+    print(f"generate audio for file {file}")
+
+    book = open(file, 'rb')
+
+    pdf_reader = PdfFileReader(book)
+    pages = pdf_reader.numPages
+
+    final_text = ""
+
+    with pdfplumber.open(file) as pdf:
+        for i in range(0, pages):
+            page = pdf.pages[i]
+            text = page.extract_text()
+            final_text += text
+
+    engine = pyttsx3.init()
+    dest_filename = file + '.mp3'
+    engine.save_to_file(final_text, f'{dest_filename}')
+    engine.runAndWait()
+
+    print(f"successfully generated audio file at {dest_filename}")
+    label = tk.Label(window,
+                     text="successfully generated audio file at " + dest_filename + "\npath copied to clipboard...")
+    label.grid(row=2, column=1, columnspan=3)
+    window.clipboard_clear()
+    window.clipboard_append(dest_filename)
+
+    book.close()
+    engine.stop()
+
+
+def destroy(msg, btn):
+    msg.pack_forget()
+    btn.pack_forget()
+    return lambda: None
 
 
 def activate_generate_audio_button(event):
@@ -100,29 +113,38 @@ def generate_audio():
 
 window = tk.Tk()
 window.geometry(WINDOW_OPENING_SIZE)
+window.columnconfigure(0, minsize=200)
+window.columnconfigure(1, minsize=400)
+window.rowconfigure(1, minsize=500)
 
 files_by_extension: Dict[str, FileByExtension] = {}
 
-label_choose_directory = tk.Label(window, text="Répertoire:")
-label_choose_directory.pack()
+label_choose_directory = tk.Label(window, text="directory to scan :")
+label_choose_directory.grid(row=0, column=0)
 
-entry_choose_directory = tk.Entry(window)
+entry_choose_directory = tk.Entry(window, width=90)
 entry_choose_directory.insert(0, DEFAULT_PATH)
-entry_choose_directory.pack()
+entry_choose_directory.grid(row=0, column=1)
 
-button_select_directory = tk.Button(window, text="Sélectionner", command=select_directory)
-button_select_directory.pack()
+button_select_directory = tk.Button(window, text="open...", command=select_directory)
+button_select_directory.grid(row=0, column=2)
 
-button_process_selected_directory = tk.Button(window, text="Analyzer", command=process_selected_directory)
-button_process_selected_directory.pack()
+button_process_selected_directory = tk.Button(window, text="scan", command=process_selected_directory)
+button_process_selected_directory.grid(row=0, column=3)
 
-listbox_stats = tk.Listbox(window, exportselection=False)
-listbox_stats.pack(fill=tk.BOTH, expand=True)
-listbox_stats.bind("<<ListboxSelect>>", display_files)
+frame_files = tk.Frame(window, exportselection=False)
+frame_files.grid(row=1, column=0, columnspan=4, sticky="NSEW")
 
-listbox_files = tk.Listbox(window, exportselection=False)
+scrollbar_files_vertical = tk.Scrollbar(frame_files, orient=tk.VERTICAL)
+scrollbar_files_vertical.pack(side=tk.RIGHT, fill=tk.Y)
+scrollbar_files_horizontal = tk.Scrollbar(frame_files, orient=tk.HORIZONTAL)
+scrollbar_files_horizontal.pack(side=tk.BOTTOM, fill=tk.X)
+listbox_files = tk.Listbox(frame_files, exportselection=False, yscrollcommand=scrollbar_files_vertical.set,
+                           xscrollcommand=scrollbar_files_horizontal.set)
 listbox_files.bind("<<ListboxSelect>>", activate_generate_audio_button)
-listbox_files.pack(fill=tk.BOTH, expand=True)
+listbox_files.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
+button_generate_audio = tk.Button(window, text="générer audio", command=process_audio_generation, state='disabled')
+button_generate_audio.grid(row=2, column=0)
 
 button_generate_audio = tk.Button(window, text="générer audio", command=generate_audio, state='disabled')
 button_generate_audio.pack()

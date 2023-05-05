@@ -4,9 +4,8 @@ from typing import List
 from stats import Stats
 
 
-def is_pdf(name: str):
+def is_pdf_file(name: str):
     if os.path.splitext(name)[1].lower() == '.pdf':
-        print(f'files pdf {name}')
         return True
     return False
 
