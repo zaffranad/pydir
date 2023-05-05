@@ -75,42 +75,6 @@ def process_audio_generation():
     engine.stop()
 
 
-def destroy(msg, btn):
-    msg.pack_forget()
-    btn.pack_forget()
-    return lambda: None
-
-
-def activate_generate_audio_button(event):
-    if os.path.splitext(listbox_files.get(listbox_files.curselection()))[1].lower() == '.pdf':
-        button_generate_audio['state'] = 'normal'
-    else:
-        button_generate_audio['state'] = 'disabled'
-
-
-def generate_audio():
-    file = listbox_files.get(listbox_files.curselection()[0])
-    print(f"generate audio for file {file}")
-    book = open(file, 'rb')
-
-    pdf_reader = PdfFileReader(book)
-    pages = pdf_reader.numPages
-
-    final_text = ""
-
-    with pdfplumber.open(file) as pdf:
-        for i in range(0, pages):
-            page = pdf.pages[i]
-            text = page.extract_text()
-            final_text += text
-
-    engine = pyttsx3.init()
-    engine.save_to_file(final_text, f'{file}.mp3')
-    engine.runAndWait()
-    book.close()
-    engine.stop()
-
-
 window = tk.Tk()
 window.geometry(WINDOW_OPENING_SIZE)
 window.columnconfigure(0, minsize=200)
@@ -132,7 +96,7 @@ button_select_directory.grid(row=0, column=2)
 button_process_selected_directory = tk.Button(window, text="scan", command=process_selected_directory)
 button_process_selected_directory.grid(row=0, column=3)
 
-frame_files = tk.Frame(window, exportselection=False)
+frame_files = tk.Frame(window)
 frame_files.grid(row=1, column=0, columnspan=4, sticky="NSEW")
 
 scrollbar_files_vertical = tk.Scrollbar(frame_files, orient=tk.VERTICAL)
@@ -143,10 +107,9 @@ listbox_files = tk.Listbox(frame_files, exportselection=False, yscrollcommand=sc
                            xscrollcommand=scrollbar_files_horizontal.set)
 listbox_files.bind("<<ListboxSelect>>", activate_generate_audio_button)
 listbox_files.pack(side=tk.LEFT, fill=tk.BOTH, expand=1)
+scrollbar_files_vertical.command = listbox_files.yview
+scrollbar_files_horizontal.command = listbox_files.xview
 button_generate_audio = tk.Button(window, text="générer audio", command=process_audio_generation, state='disabled')
 button_generate_audio.grid(row=2, column=0)
-
-button_generate_audio = tk.Button(window, text="générer audio", command=generate_audio, state='disabled')
-button_generate_audio.pack()
 
 window.mainloop()
